@@ -1,46 +1,90 @@
-# Getting Started with Create React App
+# Custom Hooks
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+### Hooks - Controller Api call `useFetchAndLoad()`
 
-## Available Scripts
+```
+    // hooks/useFetchAndLoad.ts
 
-In the project directory, you can run:
+    const useFetchAndLoad = () => {
+    const [loading, setLoading] = useState(false);
+    let controller: AbortController;
 
-### `npm start`
+    const callEndpoint = async (axiosCall: AxiosCall<any>) => {
+        if (axiosCall.controller) controller = axiosCall.controller;
+        setLoading(true);
+        let result = {} as AxiosResponse<any>;
+        try {
+            result = await axiosCall.call;
+        } catch (err: any) {
+            setLoading(false);
+            throw err;
+        }
+        setLoading(false);
+        return result;
+    };
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+    const cancelEndpoint = () => {
+        setLoading(false);
+        controller && controller.abort();
+    };
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+    useEffect(() => {
+        return () => {
+            cancelEndpoint();
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-### `npm test`
+    return { loading, callEndpoint };
+};
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Hooks - Check if a component is active `useAsync()`
 
-### `npm run build`
+```
+    // hooks/asyncComponentClean.hook.ts
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+    import { useEffect } from "react";
+    import { AxiosResponse } from "axios";
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+    export const useAsync = (
+        asyncFn: () => Promise<AxiosResponse<any, any>>,
+        successFunction: Function,
+        returnFunction: Function,
+        dependencies: any[] = []
+    ) => {
+        useEffect(() => {
+            let isActive = true;
+            asyncFn().then((result) => {
+                if (isActive) successFunction(result.data);
+            });
+            return () => {
+                returnFunction && returnFunction();
+                isActive = false;
+            };
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, dependencies);
+    };
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```
 
-### `npm run eject`
+### Usage Hook `useFetchAndLoad()` and `useAsync()`
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```
+    // usage
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+    const foo = () => {
+    const { loading, callEndpoint } = useFetchAndLoad();
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+    const [morty, setMorty] = useState(null);
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+    const getApiData = async () => await callEndpoint(getCoolMorty());
 
-## Learn More
+    const adaptMorty = (data: any) => {
+        setMorty(data.name);
+    };
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+    useAsync(getApiData, adaptMorty, () => {});
+    }
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```

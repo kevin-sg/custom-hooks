@@ -1,5 +1,5 @@
-import { AxiosResponse } from "axios";
 import { useEffect } from "react";
+import { AxiosResponse } from "axios";
 
 export const useAsync = (
     asyncFn: () => Promise<AxiosResponse<any, any>>,
